@@ -101,6 +101,54 @@ esac
 
 
 
+# Set daemon MTU if the flag is present
+if [ -n "$DAEMON_MTU" ]; then
+    if [ "$VERBOSE" = true ]; then
+        echo "Setting daemon MTU to $DAEMON_MTU..."
+    fi
+    echo "$DAEMON_MTU" | sudo tee /etc/docker/daemon.json > /dev/null
+    sudo systemctl restart docker
+fi
+
+
+
+if [ -x "$(command -v lsb_release)" ]; then
+    distro=$(lsb_release -si)
+elif [ -f /etc/os-release ]; then
+    distro=$(awk -F= '/^ID=/{print $2}' /etc/os-release)
+else
+    echo "Unable to determine the current Linux distribution"
+    exit 1
+fi
+
+# Install Docker and Docker Compose using the appropriate package manager
+if [ "$VERBOSE" = true ]; then
+    echo "Installing Docker and Docker Compose using $PM..."
+fi
+case "$distro" in
+    Arch)
+        sudo pacman -Sy docker docker-compose
+        ;;
+    CentOS)
+        sudo yum check-update
+        sudo yum install -y docker-ce docker-ce-cli containerd.io
+        sudo systemctl start docker
+        sudo systemctl enable docker
+        sudo curl -L "https://github.com/docker/compose/releases/download/1.28.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+        ;;
+    Ubuntu)
+        sudo apt-get update
+        sudo apt-get install -y docker.io docker-compose
+        ;;
+    *)
+        echo "Unknown Linux Distribution: $distro"
+        exit 1
+        ;;
+esac
+
+
+
 # Add users to the OS and Docker group if no flag is present
 if [ "$MOTD_UPDATE" = false ] && [ "$DAEMON_MTU" = false ] && [ "$LOGGING" = false ]; then
     for user in "${USERS[@]}"; do
@@ -142,17 +190,6 @@ if [ "$VERBOSE" = true ]; then
 fi
 sudo $PM update
 sudo $PM install -y docker.io docker-compose
-
-
-
-# Set daemon MTU if the flag is present
-if [ -n "$DAEMON_MTU" ]; then
-    if [ "$VERBOSE" = true ]; then
-        echo "Setting daemon MTU to $DAEMON_MTU..."
-    fi
-    echo "$DAEMON_MTU" | sudo tee /etc/docker/daemon.json > /dev/null
-    sudo systemctl restart docker
-fi
 
 
 
