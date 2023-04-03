@@ -99,33 +99,11 @@ case $OS in
         ;;
 esac
 
-
-
-# Set daemon MTU if the flag is present
-if [ -n "$DAEMON_MTU" ]; then
-    if [ "$VERBOSE" = true ]; then
-        echo "Setting daemon MTU to $DAEMON_MTU..."
-    fi
-    echo "$DAEMON_MTU" | sudo tee /etc/docker/daemon.json > /dev/null
-    sudo systemctl restart docker
-fi
-
-
-
-if [ -x "$(command -v lsb_release)" ]; then
-    distro=$(lsb_release -si)
-elif [ -f /etc/os-release ]; then
-    distro=$(awk -F= '/^ID=/{print $2}' /etc/os-release)
-else
-    echo "Unable to determine the current Linux distribution"
-    exit 1
-fi
-
 # Install Docker and Docker Compose using the appropriate package manager
 if [ "$VERBOSE" = true ]; then
     echo "Installing Docker and Docker Compose using $PM..."
 fi
-case "$distro" in
+case "$OS" in
     Arch)
         sudo pacman -Sy docker docker-compose
         ;;
@@ -142,7 +120,7 @@ case "$distro" in
         sudo apt-get install -y docker.io docker-compose
         ;;
     *)
-        echo "Unknown Linux Distribution: $distro"
+        echo "Unknown Linux Distribution: $OS"
         exit 1
         ;;
 esac
@@ -184,12 +162,20 @@ fi
 
 
 
-# Install Docker and Docker Compose
-if [ "$VERBOSE" = true ]; then
-    echo "Installing Docker and Docker Compose using $PM..."
-fi
+
 sudo $PM update
 sudo $PM install -y docker.io docker-compose
+
+
+
+# Set daemon MTU if the flag is present
+if [ -n "$DAEMON_MTU" ]; then
+    if [ "$VERBOSE" = true ]; then
+        echo "Setting daemon MTU to $DAEMON_MTU..."
+    fi
+    echo "$DAEMON_MTU" | sudo tee /etc/docker/daemon.json > /dev/null
+    sudo systemctl restart docker
+fi
 
 
 
